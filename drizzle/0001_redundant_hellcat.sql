@@ -1,0 +1,1 @@
+ALTER TABLE "commentary" ALTER COLUMN "tags" SET DATA TYPE jsonb USING tags::jsonb;
