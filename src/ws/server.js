@@ -33,9 +33,9 @@ export function attachWebSocketServer(server) {
                 if (!ws.isAlive) {
                     return ws.terminate();
                 }
+                ws.isAlive = false;
+                ws.ping();
             });
-            ws.isAlive = false;
-            ws.ping();
         }, 30000);
 
         wss.on("close", () => {
