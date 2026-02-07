@@ -1,55 +1,28 @@
-import { eq } from 'drizzle-orm';
-import { db, pool } from './db/db.js';
-import { demoUsers } from './db/schema.js';
+import express from "express";
+import { createServer } from "http"
+import { matchesRouter } from "./routes/matches.js";
+import { attachWebSocketServer } from "./ws/server.js";
 
-async function main() {
-  try {
-    console.log('Performing CRUD operations...');
+const PORT = Number(process.env.PORT) || 8000;
+const HOST = process.env.HOST || "0.0.0.0";
 
-    // CREATE: Insert a new user
-    const [newUser] = await db
-      .insert(demoUsers)
-      .values({ name: 'Admin User', email: 'admin@example.com' })
-      .returning();
+const app = express();
+const server = createServer(app);
 
-    if (!newUser) {
-      throw new Error('Failed to create user');
-    }
-    
-    console.log('✅ CREATE: New user created:', newUser);
+app.use(express.json());
 
-    // READ: Select the user
-    const foundUser = await db.select().from(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('✅ READ: Found user:', foundUser[0]);
+app.get("/", (req, res) => {
+    res.send("Hello! Welcome to the Sportz server.");
+});
 
-    // UPDATE: Change the user's name
-    const [updatedUser] = await db
-      .update(demoUsers)
-      .set({ name: 'Super Admin' })
-      .where(eq(demoUsers.id, newUser.id))
-      .returning();
-    
-    if (!updatedUser) {
-      throw new Error('Failed to update user');
-    }
-    
-    console.log('✅ UPDATE: User updated:', updatedUser);
+app.use("/matches", matchesRouter);
 
-    // DELETE: Remove the user
-    await db.delete(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('✅ DELETE: User deleted.');
+const { broadcastMatchCreated } = attachWebSocketServer(server);
+app.locals.broadcastMatchCreated = broadcastMatchCreated; // Make it available in routes via req.app.locals 
 
-    console.log('\nCRUD operations completed successfully.');
-  } catch (error) {
-    console.error('❌ Error performing CRUD operations:', error);
-    process.exit(1);
-  } finally {
-    // If the pool exists, end it to close the connection
-    if (pool) {
-      await pool.end();
-      console.log('Database pool closed.');
-    }
-  }
-}
-
-// main();
+server.listen(PORT, HOST, () => {
+    const baseUrl = HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+    console.log(`Server is running on ${baseUrl}`);
+    console.log(`WebSocket Server is running on ${baseUrl.replace("http", "ws")}/ws`);
+});
+// ...existing code...
